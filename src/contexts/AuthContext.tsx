@@ -21,8 +21,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const loadProfile = async (userId: string) => {
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+  const loadProfile = async (user: import('@supabase/supabase-js').User) => {
+    // Upsert so users who existed before the trigger still get a profile row.
+    await supabase.from('profiles').upsert({
+      id: user.id,
+      username: user.user_metadata?.username ?? user.email?.split('@')[0] ?? user.id,
+      display_name: user.user_metadata?.display_name ?? user.user_metadata?.username ?? user.email?.split('@')[0] ?? user.id,
+    }, { onConflict: 'id', ignoreDuplicates: true })
+    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
     setProfile(data ?? null)
   }
 
@@ -30,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       if (data.session?.user) {
-        loadProfile(data.session.user.id).finally(() => setLoading(false))
+        loadProfile(data.session.user).finally(() => setLoading(false))
       } else {
         setLoading(false)
       }
@@ -39,7 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession)
       if (newSession?.user) {
-        loadProfile(newSession.user.id)
+        loadProfile(newSession.user)
       } else {
         setProfile(null)
       }
@@ -75,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshProfile = async () => {
     if (session?.user) {
-      await loadProfile(session.user.id)
+      await loadProfile(session.user)
     }
   }
 
