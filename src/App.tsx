@@ -1,7 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import Navbar from './components/Navbar'
-import DebugBanner from './components/DebugBanner'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -28,7 +27,6 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <DebugBanner />
       <Navbar />
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 sm:px-6 py-8">
         <Routes>
