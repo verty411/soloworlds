@@ -6,7 +6,6 @@
 
 -- ----------------------------------------------------------------------------
 -- profiles
--- One row per auth user. Created automatically via trigger on signup.
 -- ----------------------------------------------------------------------------
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
@@ -32,7 +31,6 @@ create policy "Users can update their own profile"
   to authenticated
   using (id = auth.uid());
 
--- Automatically create a profile row whenever a new auth user signs up.
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -56,8 +54,7 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- ----------------------------------------------------------------------------
--- journals
--- A "journal" is a shared story/world.
+-- journals (table only — RLS policies added after journal_members exists)
 -- ----------------------------------------------------------------------------
 create table if not exists public.journals (
   id uuid primary key default gen_random_uuid(),
@@ -70,6 +67,54 @@ create table if not exists public.journals (
 
 alter table public.journals enable row level security;
 
+-- ----------------------------------------------------------------------------
+-- journal_members (must exist before journals RLS policies reference it)
+-- ----------------------------------------------------------------------------
+create table if not exists public.journal_members (
+  id uuid primary key default gen_random_uuid(),
+  journal_id uuid not null references public.journals (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  status text not null check (status in ('pending', 'accepted')),
+  role text not null check (role in ('owner', 'member')),
+  created_at timestamptz not null default now(),
+  unique (journal_id, user_id)
+);
+
+alter table public.journal_members enable row level security;
+
+create policy "View memberships for journals you belong to or own"
+  on public.journal_members for select
+  to authenticated
+  using (
+    user_id = auth.uid()
+    or journal_id in (select id from public.journals where owner_id = auth.uid())
+    or journal_id in (
+      select journal_id from public.journal_members m2
+      where m2.user_id = auth.uid() and m2.status = 'accepted'
+    )
+  );
+
+create policy "Users can create their own membership row"
+  on public.journal_members for insert
+  to authenticated
+  with check (user_id = auth.uid());
+
+create policy "Owners can update membership rows for their journals"
+  on public.journal_members for update
+  to authenticated
+  using (journal_id in (select id from public.journals where owner_id = auth.uid()));
+
+create policy "Owners can delete memberships, users can remove themselves"
+  on public.journal_members for delete
+  to authenticated
+  using (
+    journal_id in (select id from public.journals where owner_id = auth.uid())
+    or user_id = auth.uid()
+  );
+
+-- ----------------------------------------------------------------------------
+-- journals RLS policies (now safe — journal_members exists)
+-- ----------------------------------------------------------------------------
 create policy "Open journals are viewable by everyone, members can view their journals"
   on public.journals for select
   to authenticated
@@ -98,66 +143,7 @@ create policy "Owners can delete their journals"
   using (owner_id = auth.uid());
 
 -- ----------------------------------------------------------------------------
--- journal_members
--- Membership + join requests. The owner gets an 'accepted'/'owner' row when
--- the journal is created. Join requests start as 'pending'/'member'.
--- ----------------------------------------------------------------------------
-create table if not exists public.journal_members (
-  id uuid primary key default gen_random_uuid(),
-  journal_id uuid not null references public.journals (id) on delete cascade,
-  user_id uuid not null references public.profiles (id) on delete cascade,
-  status text not null check (status in ('pending', 'accepted')),
-  role text not null check (role in ('owner', 'member')),
-  created_at timestamptz not null default now(),
-  unique (journal_id, user_id)
-);
-
-alter table public.journal_members enable row level security;
-
--- Members can see the membership list of journals they belong to; owners can
--- see all membership rows (including pending requests) for their journals;
--- users can always see their own membership rows.
-create policy "View memberships for journals you belong to or own"
-  on public.journal_members for select
-  to authenticated
-  using (
-    user_id = auth.uid()
-    or journal_id in (select id from public.journals where owner_id = auth.uid())
-    or journal_id in (
-      select journal_id from public.journal_members m2
-      where m2.user_id = auth.uid() and m2.status = 'accepted'
-    )
-  );
-
--- A user can create a membership row for themselves: either the owner's
--- initial 'accepted'/'owner' row at journal creation, or a 'pending'/'member'
--- join request on an open journal.
-create policy "Users can create their own membership row"
-  on public.journal_members for insert
-  to authenticated
-  with check (user_id = auth.uid());
-
--- Only the journal owner can update membership rows (approve/reject requests).
-create policy "Owners can update membership rows for their journals"
-  on public.journal_members for update
-  to authenticated
-  using (journal_id in (select id from public.journals where owner_id = auth.uid()));
-
--- The journal owner can remove members / reject requests; a user can also
--- remove their own membership (leave a journal / cancel a pending request).
-create policy "Owners can delete memberships, users can remove themselves"
-  on public.journal_members for delete
-  to authenticated
-  using (
-    journal_id in (select id from public.journals where owner_id = auth.uid())
-    or user_id = auth.uid()
-  );
-
--- ----------------------------------------------------------------------------
 -- journal_entries
--- Each entry belongs to one journal and one author. Authors can only edit or
--- delete their own entries; the journal owner can delete any entry (e.g. to
--- clean up after removing a member).
 -- ----------------------------------------------------------------------------
 create table if not exists public.journal_entries (
   id uuid primary key default gen_random_uuid(),
@@ -210,7 +196,6 @@ create policy "Authors can delete their own entries, owners can delete any entry
     or journal_id in (select id from public.journals where owner_id = auth.uid())
   );
 
--- Keep updated_at current on edits.
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -227,7 +212,7 @@ create trigger set_journal_entries_updated_at
   for each row execute procedure public.set_updated_at();
 
 -- ----------------------------------------------------------------------------
--- Helpful indexes
+-- Indexes
 -- ----------------------------------------------------------------------------
 create index if not exists journal_members_journal_id_idx on public.journal_members (journal_id);
 create index if not exists journal_members_user_id_idx on public.journal_members (user_id);
