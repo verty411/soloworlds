@@ -54,7 +54,7 @@ create trigger on_auth_user_created
   for each row execute procedure public.handle_new_user();
 
 -- ----------------------------------------------------------------------------
--- journals (table only — RLS policies added after journal_members exists)
+-- journals
 -- ----------------------------------------------------------------------------
 create table if not exists public.journals (
   id uuid primary key default gen_random_uuid(),
@@ -68,7 +68,7 @@ create table if not exists public.journals (
 alter table public.journals enable row level security;
 
 -- ----------------------------------------------------------------------------
--- journal_members (must exist before journals RLS policies reference it)
+-- journal_members
 -- ----------------------------------------------------------------------------
 create table if not exists public.journal_members (
   id uuid primary key default gen_random_uuid(),
@@ -82,38 +82,35 @@ create table if not exists public.journal_members (
 
 alter table public.journal_members enable row level security;
 
-create policy "View memberships for journals you belong to or own"
-  on public.journal_members for select
-  to authenticated
-  using (
-    user_id = auth.uid()
-    or journal_id in (select id from public.journals where owner_id = auth.uid())
-    or journal_id in (
-      select journal_id from public.journal_members m2
-      where m2.user_id = auth.uid() and m2.status = 'accepted'
-    )
-  );
+-- ----------------------------------------------------------------------------
+-- Security definer helpers to break RLS circular references
+-- ----------------------------------------------------------------------------
 
-create policy "Users can create their own membership row"
-  on public.journal_members for insert
-  to authenticated
-  with check (user_id = auth.uid());
+-- Returns journal_ids where the given user is an accepted member.
+-- Runs as the definer (bypasses RLS) so journal_members policies
+-- can reference journals and vice-versa without infinite recursion.
+create or replace function public.get_accepted_journal_ids(uid uuid)
+returns setof uuid
+language sql
+security definer stable
+set search_path = public
+as $$
+  select journal_id from public.journal_members
+  where user_id = uid and status = 'accepted';
+$$;
 
-create policy "Owners can update membership rows for their journals"
-  on public.journal_members for update
-  to authenticated
-  using (journal_id in (select id from public.journals where owner_id = auth.uid()));
-
-create policy "Owners can delete memberships, users can remove themselves"
-  on public.journal_members for delete
-  to authenticated
-  using (
-    journal_id in (select id from public.journals where owner_id = auth.uid())
-    or user_id = auth.uid()
-  );
+-- Returns journal_ids owned by the given user (bypasses RLS).
+create or replace function public.get_owned_journal_ids(uid uuid)
+returns setof uuid
+language sql
+security definer stable
+set search_path = public
+as $$
+  select id from public.journals where owner_id = uid;
+$$;
 
 -- ----------------------------------------------------------------------------
--- journals RLS policies (now safe — journal_members exists)
+-- journals RLS policies (use helper functions, not direct subqueries)
 -- ----------------------------------------------------------------------------
 create policy "Open journals are viewable by everyone, members can view their journals"
   on public.journals for select
@@ -121,10 +118,7 @@ create policy "Open journals are viewable by everyone, members can view their jo
   using (
     is_open = true
     or owner_id = auth.uid()
-    or id in (
-      select journal_id from public.journal_members
-      where user_id = auth.uid() and status = 'accepted'
-    )
+    or id in (select public.get_accepted_journal_ids(auth.uid()))
   );
 
 create policy "Users can create their own journals"
@@ -141,6 +135,36 @@ create policy "Owners can delete their journals"
   on public.journals for delete
   to authenticated
   using (owner_id = auth.uid());
+
+-- ----------------------------------------------------------------------------
+-- journal_members RLS policies (use helper functions)
+-- ----------------------------------------------------------------------------
+create policy "View memberships for journals you belong to or own"
+  on public.journal_members for select
+  to authenticated
+  using (
+    user_id = auth.uid()
+    or journal_id in (select public.get_owned_journal_ids(auth.uid()))
+    or journal_id in (select public.get_accepted_journal_ids(auth.uid()))
+  );
+
+create policy "Users can create their own membership row"
+  on public.journal_members for insert
+  to authenticated
+  with check (user_id = auth.uid());
+
+create policy "Owners can update membership rows for their journals"
+  on public.journal_members for update
+  to authenticated
+  using (journal_id in (select public.get_owned_journal_ids(auth.uid())));
+
+create policy "Owners can delete memberships, users can remove themselves"
+  on public.journal_members for delete
+  to authenticated
+  using (
+    journal_id in (select public.get_owned_journal_ids(auth.uid()))
+    or user_id = auth.uid()
+  );
 
 -- ----------------------------------------------------------------------------
 -- journal_entries
@@ -162,11 +186,8 @@ create policy "Entries are viewable by accepted members and the owner"
   on public.journal_entries for select
   to authenticated
   using (
-    journal_id in (select id from public.journals where owner_id = auth.uid())
-    or journal_id in (
-      select journal_id from public.journal_members
-      where user_id = auth.uid() and status = 'accepted'
-    )
+    journal_id in (select public.get_owned_journal_ids(auth.uid()))
+    or journal_id in (select public.get_accepted_journal_ids(auth.uid()))
   );
 
 create policy "Accepted members and owner can create entries as themselves"
@@ -175,11 +196,8 @@ create policy "Accepted members and owner can create entries as themselves"
   with check (
     author_id = auth.uid()
     and (
-      journal_id in (select id from public.journals where owner_id = auth.uid())
-      or journal_id in (
-        select journal_id from public.journal_members
-        where user_id = auth.uid() and status = 'accepted'
-      )
+      journal_id in (select public.get_owned_journal_ids(auth.uid()))
+      or journal_id in (select public.get_accepted_journal_ids(auth.uid()))
     )
   );
 
@@ -193,7 +211,7 @@ create policy "Authors can delete their own entries, owners can delete any entry
   to authenticated
   using (
     author_id = auth.uid()
-    or journal_id in (select id from public.journals where owner_id = auth.uid())
+    or journal_id in (select public.get_owned_journal_ids(auth.uid()))
   );
 
 create or replace function public.set_updated_at()
