@@ -15,22 +15,27 @@ export default function Dashboard() {
   const [joiningId, setJoiningId] = useState<string | null>(null)
 
   const withCounts = async (journals: Journal[]): Promise<Journal[]> => {
-    return Promise.all(
-      journals.map(async (j) => {
-        const [{ count: memberCount }, { count: entryCount }] = await Promise.all([
-          supabase
-            .from('journal_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('journal_id', j.id)
-            .eq('status', 'accepted'),
-          supabase
-            .from('journal_entries')
-            .select('*', { count: 'exact', head: true })
-            .eq('journal_id', j.id),
-        ])
-        return { ...j, member_count: memberCount ?? 0, entry_count: entryCount ?? 0 }
-      })
-    )
+    if (!journals.length) return journals
+    const ids = journals.map(j => j.id)
+
+    const [membersRes, entriesRes] = await Promise.all([
+      supabase.from('journal_members').select('journal_id').in('journal_id', ids).eq('status', 'accepted'),
+      supabase.from('journal_entries').select('journal_id').in('journal_id', ids),
+    ])
+
+    const memberCounts: Record<string, number> = {}
+    for (const r of membersRes.data ?? []) memberCounts[r.journal_id] = (memberCounts[r.journal_id] ?? 0) + 1
+
+    const entryCounts: Record<string, number> = {}
+    for (const r of entriesRes.data ?? []) entryCounts[r.journal_id] = (entryCounts[r.journal_id] ?? 0) + 1
+
+    if (entriesRes.error) setError(`Entry count error: ${entriesRes.error.message}`)
+
+    return journals.map(j => ({
+      ...j,
+      member_count: memberCounts[j.id] ?? 0,
+      entry_count: entryCounts[j.id] ?? 0,
+    }))
   }
 
   const loadData = useCallback(async () => {
