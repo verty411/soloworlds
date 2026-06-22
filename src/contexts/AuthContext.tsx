@@ -22,12 +22,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   const loadProfile = async (user: import('@supabase/supabase-js').User) => {
-    // Upsert so users who existed before the trigger still get a profile row.
-    await supabase.from('profiles').upsert({
-      id: user.id,
-      username: user.user_metadata?.username ?? user.email?.split('@')[0] ?? user.id,
-      display_name: user.user_metadata?.display_name ?? user.user_metadata?.username ?? user.email?.split('@')[0] ?? user.id,
-    }, { onConflict: 'id', ignoreDuplicates: true })
+    const username = user.user_metadata?.username
+    const displayName = user.user_metadata?.display_name ?? username
+    // Only upsert on fresh signup when metadata is present; otherwise just fetch.
+    if (username) {
+      await supabase.from('profiles').upsert(
+        { id: user.id, username, display_name: displayName },
+        { onConflict: 'id', ignoreDuplicates: true }
+      )
+    }
     const { data } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
     setProfile(data ?? null)
   }
