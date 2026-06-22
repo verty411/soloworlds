@@ -73,7 +73,7 @@ function ToolBtn({ label, title, mono, onClick }: ToolbarButtonProps) {
       type="button"
       title={title}
       onClick={onClick}
-      className={`px-2 py-0.5 text-sm rounded hover:bg-gray-200 text-ink border border-transparent hover:border-border transition-colors ${mono ? 'font-mono' : ''}`}
+      className={`px-2 py-0.5 text-sm rounded hover:bg-accentLight text-ink border border-transparent hover:border-border transition-colors ${mono ? 'font-mono' : ''}`}
     >
       {label}
     </button>
@@ -128,7 +128,7 @@ export default function EntryForm({
         <label className="label" htmlFor="entry-body">Entry</label>
 
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 border border-b-0 border-border rounded-t-md bg-gray-50">
+        <div className="flex flex-wrap items-center gap-0.5 px-2 py-1 border border-b-0 border-border rounded-t-md bg-surfaceDim">
           <ToolBtn label="B" title="Bold" onClick={() => wrapInline(ta(), setBody, '**', '**', 'bold text')} />
           <ToolBtn label="I" title="Italic" onClick={() => wrapInline(ta(), setBody, '*', '*', 'italic text')} />
           <ToolBtn label="S" title="Strikethrough" onClick={() => wrapInline(ta(), setBody, '~~', '~~', 'strikethrough')} />

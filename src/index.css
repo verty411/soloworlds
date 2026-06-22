@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme tokens ────────────────────────────────────────────── */
+:root {
+  --color-paper:       #FBF9F6;
+  --color-ink:         #2B2A28;
+  --color-muted:       #8A8580;
+  --color-accent:      #5B6F5B;
+  --color-accent-light:#E7ECE5;
+  --color-border:      #E5E0D9;
+  --color-card:        #FFFFFF;
+  --color-code-bg:     #F3F2EE;
+  --color-surface-dim: #F5F3EF;
+}
+
+.dark {
+  --color-paper:       #1C1C1A;
+  --color-ink:         #E8E4DC;
+  --color-muted:       #7A7672;
+  --color-accent:      #7A9B7A;
+  --color-accent-light:#263026;
+  --color-border:      #2E2E2A;
+  --color-card:        #242420;
+  --color-code-bg:     #1A1A18;
+  --color-surface-dim: #1E1E1C;
+}
+
+/* ── Base ────────────────────────────────────────────────────── */
 @layer base {
   body {
     @apply bg-paper text-ink font-sans antialiased;
@@ -11,6 +37,7 @@
   }
 }
 
+/* ── Components ──────────────────────────────────────────────── */
 @layer components {
   .btn {
     @apply inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
@@ -19,10 +46,10 @@
     @apply btn bg-accent text-white hover:bg-accent/90;
   }
   .btn-secondary {
-    @apply btn bg-white border border-border text-ink hover:bg-accentLight;
+    @apply btn bg-card border border-border text-ink hover:bg-accentLight;
   }
   .btn-danger {
-    @apply btn bg-white border border-red-200 text-red-600 hover:bg-red-50;
+    @apply btn bg-card border border-red-800/40 text-red-400 hover:bg-red-900/20;
   }
   .btn-ghost {
     @apply btn bg-transparent text-ink hover:bg-accentLight;
@@ -31,7 +58,7 @@
     @apply bg-card border border-border rounded-xl shadow-sm;
   }
   .input {
-    @apply w-full rounded-lg border border-border bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40;
+    @apply w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-ink placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-accent/40;
   }
   .label {
     @apply block text-sm font-medium text-ink mb-1;

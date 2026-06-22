@@ -12,7 +12,7 @@ function parseInline(text: string): React.ReactNode {
     if (m[0].startsWith('**'))      parts.push(<strong key={key++}>{m[2]}</strong>)
     else if (m[0].startsWith('~~')) parts.push(<s key={key++}>{m[3]}</s>)
     else if (m[0].startsWith('*'))  parts.push(<em key={key++}>{m[4]}</em>)
-    else                            parts.push(<code key={key++} className="bg-gray-100 text-sm font-mono px-1 rounded">{m[5]}</code>)
+    else                            parts.push(<code key={key++} className="bg-codeBg text-sm font-mono px-1 rounded">{m[5]}</code>)
     last = m.index + m[0].length
   }
   if (last < text.length) parts.push(text.slice(last))
@@ -85,9 +85,9 @@ export default function BodyRenderer({ body }: { body: string }) {
       {segs.map((seg, idx) => {
         if (seg.type === 'blank') return <div key={idx} className="h-2" />
         if (seg.type === 'dice') return (
-          <div key={idx} className="my-3 rounded border border-border bg-gray-50 font-mono text-sm overflow-x-auto">
+          <div key={idx} className="my-3 rounded border border-border bg-codeBg font-mono text-sm overflow-x-auto">
             <div className="px-3 py-1 text-xs text-muted border-b border-border select-none">🎲 Roll the dice…</div>
-            <pre className="px-3 py-2 whitespace-pre-wrap">{seg.lines.join('\n')}</pre>
+            <pre className="px-3 py-2 whitespace-pre-wrap text-ink">{seg.lines.join('\n')}</pre>
           </div>
         )
         if (seg.type === 'quote') return (

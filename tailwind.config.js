@@ -1,6 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
+  darkMode: 'class',
   theme: {
     extend: {
       fontFamily: {
@@ -8,13 +9,15 @@ export default {
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       colors: {
-        paper: '#FBF9F6',
-        ink: '#2B2A28',
-        muted: '#8A8580',
-        accent: '#5B6F5B',
-        accentLight: '#E7ECE5',
-        border: '#E5E0D9',
-        card: '#FFFFFF',
+        paper:       'var(--color-paper)',
+        ink:         'var(--color-ink)',
+        muted:       'var(--color-muted)',
+        accent:      'var(--color-accent)',
+        accentLight: 'var(--color-accent-light)',
+        border:      'var(--color-border)',
+        card:        'var(--color-card)',
+        codeBg:      'var(--color-code-bg)',
+        surfaceDim:  'var(--color-surface-dim)',
       },
     },
   },

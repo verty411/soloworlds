@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import EditProfileModal from './EditProfileModal'
+import { useTheme } from '../hooks/useTheme'
 
 export default function Navbar() {
   const { user, profile, signOut } = useAuth()
   const navigate = useNavigate()
   const [showEdit, setShowEdit] = useState(false)
+  const { theme, toggle } = useTheme()
 
   const handleSignOut = async () => {
     await signOut()
@@ -21,6 +23,13 @@ export default function Navbar() {
             Shared Worlds
           </Link>
           <nav className="flex items-center gap-3">
+              <button
+                onClick={toggle}
+                title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                className="btn-ghost px-2 py-1 text-base"
+              >
+                {theme === 'dark' ? '☀️' : '🌙'}
+              </button>
             {user ? (
               <>
                 <Link to="/dashboard" className="text-sm text-ink hover:text-accent">

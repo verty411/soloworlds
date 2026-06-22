@@ -85,7 +85,7 @@ export default function EditProfileModal({ onClose }: Props) {
         {/* Email (read-only) */}
         <div>
           <label className="label">Email</label>
-          <p className="input bg-gray-50 text-muted cursor-default select-all">{user?.email}</p>
+          <p className="input bg-surfaceDim text-muted cursor-default select-all">{user?.email}</p>
         </div>
 
         {/* Display name */}
