@@ -8,7 +8,7 @@ interface AuthContextValue {
   user: User | null
   profile: Profile | null
   loading: boolean
-  signUp: (email: string, password: string, username: string, displayName: string) => Promise<{ error: string | null }>
+  signUp: (email: string, password: string, displayName: string) => Promise<{ error: string | null }>
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -59,16 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const signUp = async (email: string, password: string, username: string, displayName: string) => {
+  const signUp = async (email: string, password: string, displayName: string) => {
+    // Derive a username from display name: lowercase, spaces→underscores, strip non-alphanumeric
+    const username = displayName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') || email.split('@')[0]
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        data: {
-          username,
-          display_name: displayName,
-        },
-      },
+      options: { data: { username, display_name: displayName } },
     })
     return { error: error?.message ?? null }
   }

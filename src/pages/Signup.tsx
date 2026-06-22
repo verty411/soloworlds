@@ -6,7 +6,6 @@ export default function Signup() {
   const { signUp } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
-  const [username, setUsername] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -18,16 +17,14 @@ export default function Signup() {
     setError(null)
     setInfo(null)
     setSubmitting(true)
-    const { error } = await signUp(email, password, username, displayName || username)
+    const { error } = await signUp(email, password, displayName)
     setSubmitting(false)
     if (error) {
       setError(error)
       return
     }
-    // If email confirmation is disabled in Supabase, the user is signed in immediately.
-    // If it's enabled, they'll need to confirm via email first.
-    setInfo('Account created. If email confirmation is enabled for your Supabase project, check your inbox before logging in.')
-    setTimeout(() => navigate('/login'), 1500)
+    setInfo('Account created! Check your inbox to confirm your email, then log in.')
+    setTimeout(() => navigate('/login'), 2000)
   }
 
   return (
@@ -46,28 +43,15 @@ export default function Signup() {
           />
         </div>
         <div>
-          <label className="label" htmlFor="username">Username</label>
-          <input
-            id="username"
-            type="text"
-            required
-            minLength={3}
-            pattern="[a-zA-Z0-9_]+"
-            title="Letters, numbers, and underscores only"
-            className="input"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-        </div>
-        <div>
-          <label className="label" htmlFor="displayName">Display name (optional)</label>
+          <label className="label" htmlFor="displayName">Display name</label>
           <input
             id="displayName"
             type="text"
+            required
             className="input"
+            placeholder="Shown to other contributors"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
-            placeholder={username || 'Shown to other contributors'}
           />
         </div>
         <div>
@@ -83,16 +67,14 @@ export default function Signup() {
           />
         </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        {info && <p className="text-sm text-accent">{info}</p>}
+        {info && <p className="text-sm text-green-600">{info}</p>}
         <button type="submit" className="btn-primary w-full" disabled={submitting}>
-          {submitting ? 'Creating account...' : 'Sign up'}
+          {submitting ? 'Creating account…' : 'Sign up'}
         </button>
       </form>
       <p className="text-sm text-muted text-center mt-4">
         Already have an account?{' '}
-        <Link to="/login" className="text-accent font-medium">
-          Log in
-        </Link>
+        <Link to="/login" className="text-accent font-medium">Log in</Link>
       </p>
     </div>
   )
