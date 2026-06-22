@@ -96,7 +96,7 @@ export default function Landing() {
                   <p className="text-xs text-muted">
                     by {j.owner?.display_name ?? j.owner?.username ?? 'unknown'}
                     {' · '}
-                    {j.member_count} member{j.member_count === 1 ? '' : 's'}
+                    {j.member_count} contributor{j.member_count === 1 ? '' : 's'}
                   </p>
                 </div>
               </div>

@@ -28,7 +28,7 @@ export default function JournalCard({ journal, variant, onRequestJoin, joinSubmi
             <span className="chip">Owner</span>
           )}
           {variant === 'mine' && journal.my_status === 'accepted' && (
-            <span className="chip">Member</span>
+            <span className="chip">Contributor</span>
           )}
         </div>
         {journal.description && (
@@ -39,7 +39,7 @@ export default function JournalCard({ journal, variant, onRequestJoin, joinSubmi
       <div className="flex items-center gap-3 text-xs text-muted">
         <span>By {ownerName}</span>
         <span>·</span>
-        <span>{journal.member_count ?? 0} member{(journal.member_count ?? 0) === 1 ? '' : 's'}</span>
+        <span>{journal.member_count ?? 0} contributor{(journal.member_count ?? 0) === 1 ? '' : 's'}</span>
         <span>·</span>
         <span>{journal.entry_count ?? 0} entr{(journal.entry_count ?? 0) === 1 ? 'y' : 'ies'}</span>
       </div>

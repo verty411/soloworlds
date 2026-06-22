@@ -91,7 +91,7 @@ export default function ManagePanel({
       </div>
 
       <div>
-        <h3 className="text-sm font-semibold text-ink mb-2">Members</h3>
+        <h3 className="text-sm font-semibold text-ink mb-2">Contributors</h3>
         <ul className="space-y-2">
           {members.map((m) => (
             <li key={m.id} className="flex items-center justify-between gap-2 text-sm">
@@ -112,7 +112,7 @@ export default function ManagePanel({
           ))}
         </ul>
         {removableMembers.length === 0 && (
-          <p className="text-sm text-muted mt-1">No other members yet.</p>
+          <p className="text-sm text-muted mt-1">No other contributors yet.</p>
         )}
       </div>
 
