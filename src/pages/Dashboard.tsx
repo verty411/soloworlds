@@ -14,7 +14,7 @@ export default function Dashboard() {
   const [showCreate, setShowCreate] = useState(false)
   const [joiningId, setJoiningId] = useState<string | null>(null)
 
-  const withCounts = async (journals: Journal[]): Promise<Journal[]> => {
+  const withCounts = async (journals: Journal[], fallbackMemberCount = 0): Promise<Journal[]> => {
     if (!journals.length) return journals
     const ids = journals.map(j => j.id)
 
@@ -33,7 +33,7 @@ export default function Dashboard() {
 
     return journals.map(j => ({
       ...j,
-      member_count: memberCounts[j.id] ?? 0,
+      member_count: memberCounts[j.id] ?? fallbackMemberCount,
       entry_count: entryCounts[j.id] ?? 0,
     }))
   }
@@ -93,8 +93,8 @@ export default function Dashboard() {
       }))
 
     const [mineWithCounts, directoryWithCounts] = await Promise.all([
-      withCounts(mine),
-      withCounts(directory),
+      withCounts(mine, 0),
+      withCounts(directory, 1),
     ])
 
     // Sort: owned first, then most recently created.
