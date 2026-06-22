@@ -9,6 +9,7 @@ interface OpenJournal {
   banner_url: string | null
   created_at: string
   owner: { username: string; display_name: string } | null
+  journal_members: { count: number }[]
 }
 
 export default function Landing() {
@@ -17,7 +18,7 @@ export default function Landing() {
   useEffect(() => {
     supabase
       .from('journals')
-      .select('id, title, description, banner_url, created_at, owner:profiles(username, display_name)')
+      .select('id, title, description, banner_url, created_at, owner:profiles(username, display_name), journal_members(count)')
       .eq('is_open', true)
       .order('created_at', { ascending: false })
       .then(({ data }) => setJournals((data as any) ?? []))
@@ -75,6 +76,8 @@ export default function Landing() {
                   )}
                   <p className="text-xs text-muted">
                     by {j.owner?.display_name ?? j.owner?.username ?? 'unknown'}
+                    {' · '}
+                    {j.journal_members?.[0]?.count ?? 0} member{(j.journal_members?.[0]?.count ?? 0) === 1 ? '' : 's'}
                   </p>
                 </div>
               </div>
