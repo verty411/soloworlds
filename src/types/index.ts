@@ -11,6 +11,7 @@ export interface Journal {
   description: string | null
   owner_id: string
   is_open: boolean
+  banner_url: string | null
   created_at: string
   // Joined / computed fields (populated client-side)
   owner?: Profile

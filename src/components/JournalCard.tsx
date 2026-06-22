@@ -12,7 +12,15 @@ export default function JournalCard({ journal, variant, onRequestJoin, joinSubmi
   const ownerName = journal.owner?.display_name ?? journal.owner?.username ?? 'Unknown'
 
   return (
-    <div className="card p-5 flex flex-col gap-3">
+    <div className="card flex flex-col overflow-hidden">
+      {journal.banner_url && (
+        <img
+          src={journal.banner_url}
+          alt=""
+          className="w-full h-36 object-cover"
+        />
+      )}
+      <div className="p-5 flex flex-col gap-3 flex-1">
       <div>
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-serif text-lg font-semibold text-ink">{journal.title}</h3>
@@ -54,6 +62,7 @@ export default function JournalCard({ journal, variant, onRequestJoin, joinSubmi
             {joinSubmitting ? 'Requesting...' : 'Request to join'}
           </button>
         )}
+      </div>
       </div>
     </div>
   )
