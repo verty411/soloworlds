@@ -109,7 +109,7 @@ export default function CreateJournalModal({ onClose, onCreated }: CreateJournal
           </div>
 
           <div>
-            <label className="label">Banner image <span className="text-muted font-normal">(optional, max 2 MB)</span></label>
+            <label className="label">Banner image <span className="text-muted font-normal">(optional, max 2 MB — recommended 1200×400px)</span></label>
             {bannerPreview ? (
               <div className="relative">
                 <img
