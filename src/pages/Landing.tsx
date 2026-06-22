@@ -9,19 +9,38 @@ interface OpenJournal {
   banner_url: string | null
   created_at: string
   owner: { username: string; display_name: string } | null
-  journal_members: { count: number }[]
+  member_count: number
 }
 
 export default function Landing() {
   const [journals, setJournals] = useState<OpenJournal[]>([])
 
   useEffect(() => {
-    supabase
-      .from('journals')
-      .select('id, title, description, banner_url, created_at, owner:profiles(username, display_name), journal_members(count)')
-      .eq('is_open', true)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => setJournals((data as any) ?? []))
+    const load = async () => {
+      const { data: journalData } = await supabase
+        .from('journals')
+        .select('id, title, description, banner_url, created_at, owner:profiles(username, display_name)')
+        .eq('is_open', true)
+        .order('created_at', { ascending: false })
+
+      if (!journalData?.length) return
+
+      const ids = journalData.map((j: any) => j.id)
+
+      const { data: memberData } = await supabase
+        .from('journal_members')
+        .select('journal_id')
+        .in('journal_id', ids)
+        .eq('status', 'accepted')
+
+      const countMap: Record<string, number> = {}
+      for (const row of memberData ?? []) {
+        countMap[row.journal_id] = (countMap[row.journal_id] ?? 0) + 1
+      }
+
+      setJournals(journalData.map((j: any) => ({ ...j, member_count: countMap[j.id] ?? 1 })))
+    }
+    load()
   }, [])
 
   return (
@@ -77,7 +96,7 @@ export default function Landing() {
                   <p className="text-xs text-muted">
                     by {j.owner?.display_name ?? j.owner?.username ?? 'unknown'}
                     {' · '}
-                    {j.journal_members?.[0]?.count ?? 0} member{(j.journal_members?.[0]?.count ?? 0) === 1 ? '' : 's'}
+                    {j.member_count} member{j.member_count === 1 ? '' : 's'}
                   </p>
                 </div>
               </div>
