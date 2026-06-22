@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { JournalEntry } from '../types'
 import EntryForm from './EntryForm'
+import BodyRenderer from './BodyRenderer'
 
 interface EntryCardProps {
   entry: JournalEntry
@@ -72,7 +73,7 @@ export default function EntryCard({ entry, isAuthor, isOwner, onUpdate, onDelete
         {authorName} · {timestamp}
         {edited ? ' · edited' : ''}
       </p>
-      <p className="text-sm text-ink whitespace-pre-wrap leading-relaxed">{entry.body}</p>
+      <BodyRenderer body={entry.body} />
       {entry.tags.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-3">
           {entry.tags.map((tag) => (
