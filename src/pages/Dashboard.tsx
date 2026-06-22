@@ -14,26 +14,25 @@ export default function Dashboard() {
   const [showCreate, setShowCreate] = useState(false)
   const [joiningId, setJoiningId] = useState<string | null>(null)
 
-  const withCounts = async (journals: Journal[], fallbackMemberCount = 0): Promise<Journal[]> => {
+  const withCounts = async (journals: Journal[]): Promise<Journal[]> => {
     if (!journals.length) return journals
     const ids = journals.map(j => j.id)
 
-    const [membersRes, entriesRes] = await Promise.all([
-      supabase.from('journal_members').select('journal_id').in('journal_id', ids).eq('status', 'accepted'),
-      supabase.from('journal_entries').select('journal_id').in('journal_id', ids),
-    ])
+    // Counts come from a SECURITY DEFINER RPC so they're accurate even for
+    // journals the user hasn't joined (RLS would otherwise hide the rows).
+    const { data: stats, error: statsErr } = await supabase.rpc('journal_stats', { ids })
+    if (statsErr) setError(`Count error: ${statsErr.message}`)
 
     const memberCounts: Record<string, number> = {}
-    for (const r of membersRes.data ?? []) memberCounts[r.journal_id] = (memberCounts[r.journal_id] ?? 0) + 1
-
     const entryCounts: Record<string, number> = {}
-    for (const r of entriesRes.data ?? []) entryCounts[r.journal_id] = (entryCounts[r.journal_id] ?? 0) + 1
-
-    if (entriesRes.error) setError(`Entry count error: ${entriesRes.error.message}`)
+    for (const s of stats ?? []) {
+      memberCounts[s.journal_id] = Number(s.contributor_count)
+      entryCounts[s.journal_id] = Number(s.entry_count)
+    }
 
     return journals.map(j => ({
       ...j,
-      member_count: memberCounts[j.id] ?? fallbackMemberCount,
+      member_count: memberCounts[j.id] ?? 0,
       entry_count: entryCounts[j.id] ?? 0,
     }))
   }
@@ -93,8 +92,8 @@ export default function Dashboard() {
       }))
 
     const [mineWithCounts, directoryWithCounts] = await Promise.all([
-      withCounts(mine, 0),
-      withCounts(directory, 1),
+      withCounts(mine),
+      withCounts(directory),
     ])
 
     // Sort: owned first, then most recently created.

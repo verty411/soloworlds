@@ -104,6 +104,25 @@ as $$
   select id from public.journals where owner_id = uid;
 $$;
 
+-- Public, non-sensitive aggregate counts (entries + accepted contributors) for a
+-- set of journals. SECURITY DEFINER so the numbers are visible even for journals
+-- the caller hasn't joined, without exposing any entry content or member identities.
+create or replace function public.journal_stats(ids uuid[])
+returns table (journal_id uuid, entry_count bigint, contributor_count bigint)
+language sql
+security definer stable
+set search_path = public
+as $$
+  select
+    j.id,
+    (select count(*) from public.journal_entries je where je.journal_id = j.id),
+    (select count(*) from public.journal_members jm where jm.journal_id = j.id and jm.status = 'accepted')
+  from public.journals j
+  where j.id = any(ids);
+$$;
+
+grant execute on function public.journal_stats(uuid[]) to anon, authenticated;
+
 -- ----------------------------------------------------------------------------
 -- journals RLS policies
 -- ----------------------------------------------------------------------------

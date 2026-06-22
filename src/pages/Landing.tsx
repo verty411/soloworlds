@@ -10,6 +10,7 @@ interface OpenJournal {
   created_at: string
   owner: { username: string; display_name: string } | null
   member_count: number
+  entry_count: number
 }
 
 export default function Landing() {
@@ -27,18 +28,21 @@ export default function Landing() {
 
       const ids = journalData.map((j: any) => j.id)
 
-      const { data: memberData } = await supabase
-        .from('journal_members')
-        .select('journal_id')
-        .in('journal_id', ids)
-        .eq('status', 'accepted')
+      // SECURITY DEFINER RPC returns accurate counts without needing row access.
+      const { data: stats } = await supabase.rpc('journal_stats', { ids })
 
-      const countMap: Record<string, number> = {}
-      for (const row of memberData ?? []) {
-        countMap[row.journal_id] = (countMap[row.journal_id] ?? 0) + 1
+      const memberCounts: Record<string, number> = {}
+      const entryCounts: Record<string, number> = {}
+      for (const s of stats ?? []) {
+        memberCounts[s.journal_id] = Number(s.contributor_count)
+        entryCounts[s.journal_id] = Number(s.entry_count)
       }
 
-      setJournals(journalData.map((j: any) => ({ ...j, member_count: countMap[j.id] ?? 1 })))
+      setJournals(journalData.map((j: any) => ({
+        ...j,
+        member_count: memberCounts[j.id] ?? 0,
+        entry_count: entryCounts[j.id] ?? 0,
+      })))
     }
     load()
   }, [])
@@ -97,6 +101,8 @@ export default function Landing() {
                     by {j.owner?.display_name ?? j.owner?.username ?? 'unknown'}
                     {' · '}
                     {j.member_count} contributor{j.member_count === 1 ? '' : 's'}
+                    {' · '}
+                    {j.entry_count} entr{j.entry_count === 1 ? 'y' : 'ies'}
                   </p>
                 </div>
               </div>
