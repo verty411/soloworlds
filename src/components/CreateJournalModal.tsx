@@ -32,6 +32,10 @@ export default function CreateJournalModal({ onClose, onCreated }: CreateJournal
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (!user) return
+    if (!bannerFile) {
+      setError('Please upload a banner image.')
+      return
+    }
     setSubmitting(true)
     setError(null)
 
@@ -109,7 +113,7 @@ export default function CreateJournalModal({ onClose, onCreated }: CreateJournal
           </div>
 
           <div>
-            <label className="label">Banner image <span className="text-muted font-normal">(optional, max 2 MB — recommended 1200×400px)</span></label>
+            <label className="label">Banner image <span className="text-muted font-normal">(max 2 MB — recommended 1200×400px)</span></label>
             {bannerPreview ? (
               <div className="relative">
                 <img
