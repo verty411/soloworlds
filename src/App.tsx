@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import JournalDetail from './pages/JournalDetail'
+import OnboardingModal from './components/OnboardingModal'
 
 function ProtectedRoute({ children }: { children: JSX.Element }) {
   const { user, loading } = useAuth()
@@ -23,7 +24,10 @@ function CenteredLoader() {
 }
 
 export default function App() {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
+
+  // OAuth users (and anyone without a chosen handle) must finish onboarding first.
+  const needsOnboarding = !loading && !!user && !!profile && !profile.onboarded
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -58,6 +62,7 @@ export default function App() {
       <footer className="border-t border-border py-6 text-center text-xs text-muted">
         Shared Worlds — a collaborative journaling prototype
       </footer>
+      {needsOnboarding && <OnboardingModal />}
     </div>
   )
 }

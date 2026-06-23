@@ -2,6 +2,7 @@ export interface Profile {
   id: string
   username: string
   display_name: string
+  onboarded: boolean
   created_at: string
 }
 

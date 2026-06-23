@@ -11,8 +11,13 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text unique not null,
   display_name text not null,
+  onboarded boolean not null default false,
   created_at timestamptz not null default now()
 );
+
+-- For projects created before this column existed. Existing rows are treated as
+-- already onboarded so we don't re-prompt established users.
+alter table public.profiles add column if not exists onboarded boolean not null default true;
 
 alter table public.profiles enable row level security;
 
@@ -37,11 +42,14 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, username, display_name)
+  insert into public.profiles (id, username, display_name, onboarded)
   values (
     new.id,
     coalesce(new.raw_user_meta_data ->> 'username', split_part(new.email, '@', 1)),
-    coalesce(new.raw_user_meta_data ->> 'display_name', new.raw_user_meta_data ->> 'username', split_part(new.email, '@', 1))
+    coalesce(new.raw_user_meta_data ->> 'display_name', new.raw_user_meta_data ->> 'username', split_part(new.email, '@', 1)),
+    -- Email/password signups carry a chosen username in metadata and are done.
+    -- OAuth (e.g. Google) users have no username yet, so they need onboarding.
+    (new.raw_user_meta_data ->> 'username') is not null
   )
   on conflict (id) do nothing;
   return new;
