@@ -1,6 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import GoogleAuthButton from '../components/GoogleAuthButton'
 
 export default function Signup() {
   const { signUp } = useAuth()
@@ -71,6 +72,12 @@ export default function Signup() {
         <button type="submit" className="btn-primary w-full" disabled={submitting}>
           {submitting ? 'Creating account…' : 'Sign up'}
         </button>
+        <div className="flex items-center gap-3">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-xs text-muted">or</span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+        <GoogleAuthButton label="Sign up with Google" />
       </form>
       <p className="text-sm text-muted text-center mt-4">
         Already have an account?{' '}
