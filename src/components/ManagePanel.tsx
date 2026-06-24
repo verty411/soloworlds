@@ -11,7 +11,7 @@ interface ManagePanelProps {
   onApprove: (membershipId: string) => Promise<void>
   onReject: (membershipId: string) => Promise<void>
   onRemoveMember: (member: JournalMember, deleteEntries: boolean) => Promise<void>
-  onSwapIn: (waitlistedMemberId: string, currentPartnerId: string) => Promise<void>
+  onSwapIn: (waitlistedMemberId: string, currentPartnerId: string, deleteEntries: boolean) => Promise<void>
   onDeleteJournal: () => Promise<void>
 }
 
@@ -57,11 +57,20 @@ export default function ManagePanel({
     if (!currentPartner) return
     const waitlistedName = waitlisted.profile?.display_name ?? waitlisted.profile?.username ?? 'this user'
     const partnerName = currentPartner.profile?.display_name ?? currentPartner.profile?.username ?? 'the current partner'
-    if (!window.confirm(
-      `Swap in ${waitlistedName}?\n\nThis will remove ${partnerName} from the journal (their entries stay). ${waitlistedName} will become the new partner.`
-    )) return
+    const deleteEntries = window.confirm(
+      `Swap in ${waitlistedName} to replace ${partnerName}?\n\nClick OK to also delete all of ${partnerName}'s entries.\nClick Cancel to swap them out but keep their entries.`
+    )
+    // User closed the dialog entirely (Escape) — treat as cancel of the whole action.
+    // window.confirm only returns true/false so we can't distinguish; we'll treat
+    // false as "keep entries but proceed". Add a second confirm to cancel entirely.
+    const proceed = window.confirm(
+      deleteEntries
+        ? `Confirm: remove ${partnerName} and DELETE their entries, then add ${waitlistedName} as partner.`
+        : `Confirm: remove ${partnerName} (entries kept), then add ${waitlistedName} as partner.`
+    )
+    if (!proceed) return
     setBusyId(waitlisted.id)
-    await onSwapIn(waitlisted.id, currentPartner.id)
+    await onSwapIn(waitlisted.id, currentPartner.id, deleteEntries)
     setBusyId(null)
   }
 

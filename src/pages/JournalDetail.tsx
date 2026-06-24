@@ -206,18 +206,15 @@ export default function JournalDetail() {
     await loadData()
   }
 
-  // Swap: remove current partner (keep their entries), promote waitlisted person to accepted.
-  const handleSwapIn = async (waitlistedMemberId: string, currentPartnerId: string) => {
-    const { error: removeErr } = await supabase
-      .from('journal_members')
-      .delete()
-      .eq('id', currentPartnerId)
+  const handleSwapIn = async (waitlistedMemberId: string, currentPartnerId: string, deleteEntries: boolean) => {
+    const currentPartner = members.find((m) => m.id === currentPartnerId)
+    if (deleteEntries && currentPartner && id) {
+      await supabase.from('journal_entries').delete().eq('journal_id', id).eq('author_id', currentPartner.user_id)
+    }
+    const { error: removeErr } = await supabase.from('journal_members').delete().eq('id', currentPartnerId)
     if (removeErr) { setError(removeErr.message); return }
 
-    const { error: acceptErr } = await supabase
-      .from('journal_members')
-      .update({ status: 'accepted' })
-      .eq('id', waitlistedMemberId)
+    const { error: acceptErr } = await supabase.from('journal_members').update({ status: 'accepted' }).eq('id', waitlistedMemberId)
     if (acceptErr) { setError(acceptErr.message); return }
 
     await loadData()
