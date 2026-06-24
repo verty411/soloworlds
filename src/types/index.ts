@@ -21,7 +21,7 @@ export interface Journal {
   my_status?: 'owner' | 'accepted' | 'pending' | null
 }
 
-export type MembershipStatus = 'pending' | 'accepted' | 'waitlisted'
+export type MembershipStatus = 'pending' | 'accepted'
 export type MembershipRole = 'owner' | 'member'
 
 export interface JournalMember {

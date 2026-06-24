@@ -53,10 +53,6 @@ export default function JournalCard({ journal, variant, onRequestJoin, joinSubmi
           <button className="btn-secondary w-full" disabled>
             Request pending
           </button>
-        ) : journal.my_status === 'waitlisted' ? (
-          <button className="btn-secondary w-full" disabled>
-            On waitlist
-          </button>
         ) : (
           <button
             className="btn-primary w-full"

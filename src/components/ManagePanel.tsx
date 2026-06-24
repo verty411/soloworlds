@@ -3,7 +3,6 @@ import type { JournalMember } from '../types'
 
 interface ManagePanelProps {
   pendingRequests: JournalMember[]
-  waitlistedRequests: JournalMember[]
   members: JournalMember[]
   currentUserId: string
   partnerSlotFull: boolean
@@ -11,7 +10,6 @@ interface ManagePanelProps {
   onApprove: (membershipId: string) => Promise<void>
   onReject: (membershipId: string) => Promise<void>
   onRemoveMember: (member: JournalMember, deleteEntries: boolean) => Promise<void>
-  onSwapIn: (waitlistedMemberId: string, currentPartnerId: string, deleteEntries: boolean) => Promise<void>
   onDeleteJournal: () => Promise<void>
 }
 
@@ -27,7 +25,6 @@ function relativeDate(iso: string): string {
 
 export default function ManagePanel({
   pendingRequests,
-  waitlistedRequests,
   members,
   currentUserId,
   partnerSlotFull,
@@ -35,7 +32,6 @@ export default function ManagePanel({
   onApprove,
   onReject,
   onRemoveMember,
-  onSwapIn,
   onDeleteJournal,
 }: ManagePanelProps) {
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -49,28 +45,6 @@ export default function ManagePanel({
   const runReject = async (id: string) => {
     setBusyId(id)
     await onReject(id)
-    setBusyId(null)
-  }
-
-  const runSwapIn = async (waitlisted: JournalMember) => {
-    const currentPartner = members.find((m) => m.role === 'member' && m.user_id !== currentUserId)
-    if (!currentPartner) return
-    const waitlistedName = waitlisted.profile?.display_name ?? waitlisted.profile?.username ?? 'this user'
-    const partnerName = currentPartner.profile?.display_name ?? currentPartner.profile?.username ?? 'the current partner'
-    const deleteEntries = window.confirm(
-      `Swap in ${waitlistedName} to replace ${partnerName}?\n\nClick OK to also delete all of ${partnerName}'s entries.\nClick Cancel to swap them out but keep their entries.`
-    )
-    // User closed the dialog entirely (Escape) — treat as cancel of the whole action.
-    // window.confirm only returns true/false so we can't distinguish; we'll treat
-    // false as "keep entries but proceed". Add a second confirm to cancel entirely.
-    const proceed = window.confirm(
-      deleteEntries
-        ? `Confirm: remove ${partnerName} and DELETE their entries, then add ${waitlistedName} as partner.`
-        : `Confirm: remove ${partnerName} (entries kept), then add ${waitlistedName} as partner.`
-    )
-    if (!proceed) return
-    setBusyId(waitlisted.id)
-    await onSwapIn(waitlisted.id, currentPartner.id, deleteEntries)
     setBusyId(null)
   }
 
@@ -102,7 +76,7 @@ export default function ManagePanel({
           Join requests {pendingRequests.length > 0 && `(${pendingRequests.length})`}
         </h3>
         {partnerSlotFull && (
-          <p className="text-xs text-muted mb-2">Partner slot is taken — accepting will add them to the waitlist.</p>
+          <p className="text-xs text-muted mb-2">Partner slot is taken — remove the current partner before accepting someone new.</p>
         )}
         {pendingRequests.length === 0 ? (
           <p className="text-sm text-muted">No pending join requests.</p>
@@ -114,10 +88,11 @@ export default function ManagePanel({
                 <div className="flex gap-1.5">
                   <button
                     className="btn-primary text-xs px-2 py-1"
-                    disabled={busyId === req.id}
+                    disabled={busyId === req.id || partnerSlotFull}
                     onClick={() => runApprove(req.id)}
+                    title={partnerSlotFull ? 'Remove current partner first' : undefined}
                   >
-                    {partnerSlotFull ? 'Waitlist' : 'Make partner'}
+                    Accept
                   </button>
                   <button
                     className="btn-secondary text-xs px-2 py-1"
@@ -132,40 +107,6 @@ export default function ManagePanel({
           </ul>
         )}
       </div>
-
-      {waitlistedRequests.length > 0 && (
-        <div>
-          <h3 className="text-sm font-semibold text-ink mb-1">
-            Waitlist ({waitlistedRequests.length})
-          </h3>
-          <p className="text-xs text-muted mb-2">
-            Journal is full. Swap in a waitlisted person to replace the current partner (their entries stay).
-          </p>
-          <ul className="space-y-2">
-            {waitlistedRequests.map((req) => (
-              <li key={req.id} className="flex items-center justify-between gap-2 text-sm">
-                <span>{req.profile?.display_name ?? req.profile?.username}</span>
-                <div className="flex gap-1.5">
-                  <button
-                    className="btn-primary text-xs px-2 py-1"
-                    disabled={busyId === req.id}
-                    onClick={() => runSwapIn(req)}
-                  >
-                    Swap in
-                  </button>
-                  <button
-                    className="btn-secondary text-xs px-2 py-1"
-                    disabled={busyId === req.id}
-                    onClick={() => runReject(req.id)}
-                  >
-                    Remove
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       <div>
         <h3 className="text-sm font-semibold text-ink mb-2">Contributors</h3>
