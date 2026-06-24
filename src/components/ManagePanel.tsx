@@ -3,21 +3,25 @@ import type { JournalMember } from '../types'
 
 interface ManagePanelProps {
   pendingRequests: JournalMember[]
+  waitlistedRequests: JournalMember[]
   members: JournalMember[]
   currentUserId: string
   onApprove: (membershipId: string) => Promise<void>
   onReject: (membershipId: string) => Promise<void>
   onRemoveMember: (member: JournalMember, deleteEntries: boolean) => Promise<void>
+  onSwapIn: (waitlistedMemberId: string, currentPartnerId: string) => Promise<void>
   onDeleteJournal: () => Promise<void>
 }
 
 export default function ManagePanel({
   pendingRequests,
+  waitlistedRequests,
   members,
   currentUserId,
   onApprove,
   onReject,
   onRemoveMember,
+  onSwapIn,
   onDeleteJournal,
 }: ManagePanelProps) {
   const [busyId, setBusyId] = useState<string | null>(null)
@@ -31,6 +35,19 @@ export default function ManagePanel({
   const runReject = async (id: string) => {
     setBusyId(id)
     await onReject(id)
+    setBusyId(null)
+  }
+
+  const runSwapIn = async (waitlisted: JournalMember) => {
+    const currentPartner = members.find((m) => m.role === 'member' && m.user_id !== currentUserId)
+    if (!currentPartner) return
+    const waitlistedName = waitlisted.profile?.display_name ?? waitlisted.profile?.username ?? 'this user'
+    const partnerName = currentPartner.profile?.display_name ?? currentPartner.profile?.username ?? 'the current partner'
+    if (!window.confirm(
+      `Swap in ${waitlistedName}?\n\nThis will remove ${partnerName} from the journal (their entries stay). ${waitlistedName} will become the new partner.`
+    )) return
+    setBusyId(waitlisted.id)
+    await onSwapIn(waitlisted.id, currentPartner.id)
     setBusyId(null)
   }
 
@@ -89,6 +106,40 @@ export default function ManagePanel({
           </ul>
         )}
       </div>
+
+      {waitlistedRequests.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-ink mb-1">
+            Waitlist ({waitlistedRequests.length})
+          </h3>
+          <p className="text-xs text-muted mb-2">
+            Journal is full. Swap in a waitlisted person to replace the current partner (their entries stay).
+          </p>
+          <ul className="space-y-2">
+            {waitlistedRequests.map((req) => (
+              <li key={req.id} className="flex items-center justify-between gap-2 text-sm">
+                <span>{req.profile?.display_name ?? req.profile?.username}</span>
+                <div className="flex gap-1.5">
+                  <button
+                    className="btn-primary text-xs px-2 py-1"
+                    disabled={busyId === req.id}
+                    onClick={() => runSwapIn(req)}
+                  >
+                    Swap in
+                  </button>
+                  <button
+                    className="btn-secondary text-xs px-2 py-1"
+                    disabled={busyId === req.id}
+                    onClick={() => runReject(req.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div>
         <h3 className="text-sm font-semibold text-ink mb-2">Contributors</h3>

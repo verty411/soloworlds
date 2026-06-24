@@ -114,10 +114,20 @@ export default function Dashboard() {
   const handleRequestJoin = async (journalId: string) => {
     if (!user) return
     setJoiningId(journalId)
+
+    // Check whether the journal already has an accepted non-owner member.
+    const { count } = await supabase
+      .from('journal_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('journal_id', journalId)
+      .eq('status', 'accepted')
+      .eq('role', 'member')
+
+    const isFull = (count ?? 0) >= 1
     const { error } = await supabase.from('journal_members').insert({
       journal_id: journalId,
       user_id: user.id,
-      status: 'pending',
+      status: isFull ? 'waitlisted' : 'pending',
       role: 'member',
     })
     setJoiningId(null)
@@ -125,6 +135,8 @@ export default function Dashboard() {
       setError(error.message)
       return
     }
+    // Either way, the user is now in some queued state — mark pending locally
+    // so the button disables and shows the right label.
     setOpenJournals((prev) =>
       prev.map((j) => (j.id === journalId ? { ...j, my_status: 'pending' } : j))
     )

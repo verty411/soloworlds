@@ -82,7 +82,7 @@ create table if not exists public.journal_members (
   id uuid primary key default gen_random_uuid(),
   journal_id uuid not null references public.journals (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
-  status text not null check (status in ('pending', 'accepted')),
+  status text not null check (status in ('pending', 'accepted', 'waitlisted')),
   role text not null check (role in ('owner', 'member')),
   created_at timestamptz not null default now(),
   unique (journal_id, user_id)

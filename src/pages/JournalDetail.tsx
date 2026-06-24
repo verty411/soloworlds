@@ -15,6 +15,7 @@ export default function JournalDetail() {
   const [journal, setJournal] = useState<Journal | null>(null)
   const [members, setMembers] = useState<JournalMember[]>([])
   const [pendingRequests, setPendingRequests] = useState<JournalMember[]>([])
+  const [waitlistedRequests, setWaitlistedRequests] = useState<JournalMember[]>([])
   const [entries, setEntries] = useState<JournalEntry[]>([])
   const [myMembership, setMyMembership] = useState<JournalMember | null>(null)
   const [loading, setLoading] = useState(true)
@@ -75,15 +76,25 @@ export default function JournalDetail() {
       setEntries((entriesData as JournalEntry[]) ?? [])
 
       if (isOwner) {
-        const { data: pendingData } = await supabase
-          .from('journal_members')
-          .select('*, profile:profiles(*)')
-          .eq('journal_id', id)
-          .eq('status', 'pending')
-          .order('created_at')
+        const [{ data: pendingData }, { data: waitlistedData }] = await Promise.all([
+          supabase
+            .from('journal_members')
+            .select('*, profile:profiles(*)')
+            .eq('journal_id', id)
+            .eq('status', 'pending')
+            .order('created_at'),
+          supabase
+            .from('journal_members')
+            .select('*, profile:profiles(*)')
+            .eq('journal_id', id)
+            .eq('status', 'waitlisted')
+            .order('created_at'),
+        ])
         setPendingRequests((pendingData as JournalMember[]) ?? [])
+        setWaitlistedRequests((waitlistedData as JournalMember[]) ?? [])
       } else {
         setPendingRequests([])
+        setWaitlistedRequests([])
       }
     } else {
       setMembers([])
@@ -115,10 +126,21 @@ export default function JournalDetail() {
   const handleRequestJoin = async () => {
     if (!user || !id) return
     setJoinSubmitting(true)
+
+    // A journal is "full" when it already has an accepted non-owner member.
+    // In that case place the requester on the waitlist instead.
+    const { count } = await supabase
+      .from('journal_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('journal_id', id)
+      .eq('status', 'accepted')
+      .eq('role', 'member')
+
+    const isFull = (count ?? 0) >= 1
     const { error } = await supabase.from('journal_members').insert({
       journal_id: id,
       user_id: user.id,
-      status: 'pending',
+      status: isFull ? 'waitlisted' : 'pending',
       role: 'member',
     })
     setJoinSubmitting(false)
@@ -177,6 +199,23 @@ export default function JournalDetail() {
     await loadData()
   }
 
+  // Swap: remove current partner (keep their entries), promote waitlisted person to accepted.
+  const handleSwapIn = async (waitlistedMemberId: string, currentPartnerId: string) => {
+    const { error: removeErr } = await supabase
+      .from('journal_members')
+      .delete()
+      .eq('id', currentPartnerId)
+    if (removeErr) { setError(removeErr.message); return }
+
+    const { error: acceptErr } = await supabase
+      .from('journal_members')
+      .update({ status: 'accepted' })
+      .eq('id', waitlistedMemberId)
+    if (acceptErr) { setError(acceptErr.message); return }
+
+    await loadData()
+  }
+
   const handleDeleteJournal = async () => {
     if (!id) return
     const { error } = await supabase.from('journals').delete().eq('id', id)
@@ -220,6 +259,10 @@ export default function JournalDetail() {
           {myMembership?.status === 'pending' ? (
             <p className="text-sm text-muted">
               Your request to join this journal is pending approval from the owner.
+            </p>
+          ) : myMembership?.status === 'waitlisted' ? (
+            <p className="text-sm text-muted">
+              This journal already has a partner. You're on the waitlist — the owner can swap you in if the current partner becomes inactive.
             </p>
           ) : journal.is_open ? (
             <div className="space-y-3">
@@ -307,11 +350,13 @@ export default function JournalDetail() {
             {isOwner && (
               <ManagePanel
                 pendingRequests={pendingRequests}
+                waitlistedRequests={waitlistedRequests}
                 members={members}
                 currentUserId={user!.id}
                 onApprove={handleApprove}
                 onReject={handleReject}
                 onRemoveMember={handleRemoveMember}
+                onSwapIn={handleSwapIn}
                 onDeleteJournal={handleDeleteJournal}
               />
             )}
