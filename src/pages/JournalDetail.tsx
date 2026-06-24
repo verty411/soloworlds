@@ -123,24 +123,25 @@ export default function JournalDetail() {
     return entries.filter((e) => e.tags.includes(tagFilter))
   }, [entries, tagFilter])
 
+  // Map of user_id → ISO date string of their most recent entry (for the owner's manage panel).
+  const lastPostedByUser = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const e of entries) {
+      if (!map[e.author_id] || e.created_at > map[e.author_id]) {
+        map[e.author_id] = e.created_at
+      }
+    }
+    return map
+  }, [entries])
+
   const handleRequestJoin = async () => {
     if (!user || !id) return
     setJoinSubmitting(true)
-
-    // A journal is "full" when it already has an accepted non-owner member.
-    // In that case place the requester on the waitlist instead.
-    const { count } = await supabase
-      .from('journal_members')
-      .select('id', { count: 'exact', head: true })
-      .eq('journal_id', id)
-      .eq('status', 'accepted')
-      .eq('role', 'member')
-
-    const isFull = (count ?? 0) >= 1
+    // Always start as pending — the owner decides whether to accept or waitlist.
     const { error } = await supabase.from('journal_members').insert({
       journal_id: id,
       user_id: user.id,
-      status: isFull ? 'waitlisted' : 'pending',
+      status: 'pending',
       role: 'member',
     })
     setJoinSubmitting(false)
@@ -179,7 +180,13 @@ export default function JournalDetail() {
   }
 
   const handleApprove = async (membershipId: string) => {
-    const { error } = await supabase.from('journal_members').update({ status: 'accepted' }).eq('id', membershipId)
+    // If the partner slot is already taken, move this person to the waitlist instead.
+    const partnerCount = members.filter((m) => m.role === 'member').length
+    const newStatus = partnerCount >= 1 ? 'waitlisted' : 'accepted'
+    const { error } = await supabase
+      .from('journal_members')
+      .update({ status: newStatus })
+      .eq('id', membershipId)
     if (error) setError(error.message)
     await loadData()
   }
@@ -353,6 +360,8 @@ export default function JournalDetail() {
                 waitlistedRequests={waitlistedRequests}
                 members={members}
                 currentUserId={user!.id}
+                partnerSlotFull={members.filter((m) => m.role === 'member').length >= 1}
+                lastPostedByUser={lastPostedByUser}
                 onApprove={handleApprove}
                 onReject={handleReject}
                 onRemoveMember={handleRemoveMember}

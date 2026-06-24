@@ -63,11 +63,7 @@ export default function JournalCard({ journal, variant, onRequestJoin, joinSubmi
             disabled={joinSubmitting}
             onClick={() => onRequestJoin?.(journal.id)}
           >
-            {joinSubmitting
-              ? 'Requesting...'
-              : (journal.member_count ?? 0) >= 1
-              ? 'Join waitlist'
-              : 'Request to join'}
+            {joinSubmitting ? 'Requesting...' : 'Request to join'}
           </button>
         )}
       </div>

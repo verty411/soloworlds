@@ -6,6 +6,8 @@ interface ManagePanelProps {
   waitlistedRequests: JournalMember[]
   members: JournalMember[]
   currentUserId: string
+  partnerSlotFull: boolean
+  lastPostedByUser: Record<string, string>
   onApprove: (membershipId: string) => Promise<void>
   onReject: (membershipId: string) => Promise<void>
   onRemoveMember: (member: JournalMember, deleteEntries: boolean) => Promise<void>
@@ -13,11 +15,23 @@ interface ManagePanelProps {
   onDeleteJournal: () => Promise<void>
 }
 
+function relativeDate(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const days = Math.floor(diff / 86_400_000)
+  if (days === 0) return 'today'
+  if (days === 1) return 'yesterday'
+  if (days < 30) return `${days}d ago`
+  if (days < 365) return `${Math.floor(days / 30)}mo ago`
+  return `${Math.floor(days / 365)}y ago`
+}
+
 export default function ManagePanel({
   pendingRequests,
   waitlistedRequests,
   members,
   currentUserId,
+  partnerSlotFull,
+  lastPostedByUser,
   onApprove,
   onReject,
   onRemoveMember,
@@ -75,9 +89,12 @@ export default function ManagePanel({
       <h2 className="font-serif text-lg font-semibold">Manage journal</h2>
 
       <div>
-        <h3 className="text-sm font-semibold text-ink mb-2">
-          Pending requests {pendingRequests.length > 0 && `(${pendingRequests.length})`}
+        <h3 className="text-sm font-semibold text-ink mb-1">
+          Join requests {pendingRequests.length > 0 && `(${pendingRequests.length})`}
         </h3>
+        {partnerSlotFull && (
+          <p className="text-xs text-muted mb-2">Partner slot is taken — accepting will add them to the waitlist.</p>
+        )}
         {pendingRequests.length === 0 ? (
           <p className="text-sm text-muted">No pending join requests.</p>
         ) : (
@@ -91,7 +108,7 @@ export default function ManagePanel({
                     disabled={busyId === req.id}
                     onClick={() => runApprove(req.id)}
                   >
-                    Approve
+                    {partnerSlotFull ? 'Waitlist' : 'Make partner'}
                   </button>
                   <button
                     className="btn-secondary text-xs px-2 py-1"
@@ -144,23 +161,33 @@ export default function ManagePanel({
       <div>
         <h3 className="text-sm font-semibold text-ink mb-2">Contributors</h3>
         <ul className="space-y-2">
-          {members.map((m) => (
-            <li key={m.id} className="flex items-center justify-between gap-2 text-sm">
-              <span>
-                {m.profile?.display_name ?? m.profile?.username}
-                {m.role === 'owner' && <span className="chip ml-2">Owner</span>}
-              </span>
-              {m.user_id !== currentUserId && (
-                <button
-                  className="btn-danger text-xs px-2 py-1"
-                  disabled={busyId === m.id}
-                  onClick={() => runRemove(m)}
-                >
-                  Remove
-                </button>
-              )}
-            </li>
-          ))}
+          {members.map((m) => {
+            const lastPosted = lastPostedByUser[m.user_id]
+            return (
+              <li key={m.id} className="flex items-center justify-between gap-2 text-sm">
+                <span className="flex flex-col">
+                  <span>
+                    {m.profile?.display_name ?? m.profile?.username}
+                    {m.role === 'owner' && <span className="chip ml-2">Owner</span>}
+                  </span>
+                  {m.role !== 'owner' && (
+                    <span className="text-xs text-muted">
+                      {lastPosted ? `Last posted ${relativeDate(lastPosted)}` : 'No entries yet'}
+                    </span>
+                  )}
+                </span>
+                {m.user_id !== currentUserId && (
+                  <button
+                    className="btn-danger text-xs px-2 py-1 shrink-0"
+                    disabled={busyId === m.id}
+                    onClick={() => runRemove(m)}
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            )
+          })}
         </ul>
         {removableMembers.length === 0 && (
           <p className="text-sm text-muted mt-1">No other contributors yet.</p>
